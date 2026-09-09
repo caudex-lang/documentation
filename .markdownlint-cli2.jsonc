@@ -1,0 +1,31 @@
+{
+  "config": {
+    "default": true,
+    "MD001": true,
+    "MD004": { "style": "asterisk" },
+    "MD007": { "indent": 4 },
+    "MD013": {
+      "line_length": 80,
+      "tables": false,
+      "code_blocks": false
+    },
+    "MD022": true,
+    "MD025": false,
+    "MD029": { "style": "one_or_ordered" },
+    "MD030": {
+      "ul_single": 3,
+      "ul_multi": 3,
+      "ol_single": 2,
+      "ol_multi": 2
+    },
+    "MD040": {
+      "allowed_languages": ["caudex", "c", "cpp", "peg", "markdown", "bash", "text", "pegragon", "pegrasm", "text", "python"]
+    },
+    "MD041": false,
+    "MD049": { "style": "asterisk" },
+    "MD050": { "style": "asterisk" }
+  },
+  "customRules": [
+    "./cdxdoc-rules.js"
+  ]
+}
