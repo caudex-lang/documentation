@@ -3,17 +3,17 @@
 ## PEGragon a PEG Virtual Machine and Grammar Architecture
 
 | Field         | Value                             |
-|:--------------|:----------------------------------|
-| **Version**   | 1.0.0                             |
+| :------------ | :-------------------------------- |
+| **Version**   | 1.0.1                             |
 | **Author(s)** | Madeleine                         |
-| **Date**      | 13 August 2026                    |
+| **Date**      | 9 September 2026                  |
 | **Status**    | Draft                             |
 
-### 1. Introduction
- 
+### 1 - Introduction
+
 **PEGragon** is a bytecode interpreter for Parsing Expression Grammars.
 Grammars are compiled to a static bytecode array that the VM interprets
-directly — no generated parser code is shipped. This approach ensures
+directly - no generated parser code is shipped. This approach ensures
 that the grammar is defined in exactly one place and that every
 implementation of the parser runs the same parsing logic.
 
@@ -23,7 +23,7 @@ This document defines:
     cut operators, function calls, and macros.
 *   The **PEGragon opcode set**, instruction encoding, and execution model.
 
-### 2. Why a PEG VM?
+### 2 - Why a PEG VM?
 
 Traditional parsers use parser generators (Yacc, Bison, ANTLR) that emit
 source code in a target language. This has drawbacks:
@@ -38,12 +38,12 @@ source code in a target language. This has drawbacks:
 *   **Reuse of the grammar.** Other than being portable between language, the
     use of a VM allow to reuse the same grammar for different purpose with only
     changing the code handling the AST. This is what allow Caudex to use the
-    same grammar for both compiling and executing some part of the code during 
+    same grammar for both compiling and executing some part of the code during
     compilation.
 
 With a PEG VM, the grammar is compiled to a **platform-independent bytecode
 array**. Every implementation includes a small VM interpreter (~200 lines,
-~20 opcodes). The bytecode is identical across all hosts — only the
+~20 opcodes). The bytecode is identical across all hosts - only the
 interpreter loop is reimplemented.
 
 PEGs themselves were chosen over BNF/LALR because:
@@ -55,46 +55,46 @@ PEGs themselves were chosen over BNF/LALR because:
 *   **Left-recursion eliminated naturally.** Expression grammars are rewritten
     as iterative `(op expr)*` patterns.
 
-### 3. PEG Grammar Notation (PEGragon Dialect)
+### 3 - PEG Grammar Notation (PEGragon Dialect)
 
 PEGragon extends standard PEG notation with AST capture markers, cut
 operators, built-in function calls, and macros.
 
-#### 3.1. Core PEG Constructs
+#### 3.1 - Core PEG Constructs
 
-| Construct       | Syntax            | Description                                            |
-|:----------------|:------------------|:-------------------------------------------------------|
-| Sequence        | `A B`             | Match A then B.                                        |
-| Ordered Choice  | `A / B`           | Try A; if it fails, try B.                             |
-| Zero-or-more    | `A*`              | Match A zero or more times.                            |
-| One-or-more     | `A+`              | Match A one or more times.                             |
-| Optional        | `A?`              | Match A zero or one time.                              |
-| And-predicate   | `&A`              | Try A without consuming input (succeeds if A matches). |
-| Not-predicate   | `!A`              | Try A without consuming input (succeeds if A fails).   |
-| Literal string  | `'text'` / `"text"` | Match exact sequence of bytes.                       |
-| Character class | `[a-z]`           | Match one byte in the set or range.                    |
-| Any character   | `.`               | Match any single byte (fails at EOF).                  |
-| Rule reference  | `RuleName`        | Match the named rule.                                  |
-| Grouping        | `(A)`             | Group sub-expressions.                                 |
+| Construct       | Syntax              | Description                                            |
+| :-------------- | :------------------ | :----------------------------------------------------- |
+| Sequence        | `A B`               | Match A then B.                                        |
+| Ordered Choice  | `A / B`             | Try A; if it fails, try B.                             |
+| Zero-or-more    | `A*`                | Match A zero or more times.                            |
+| One-or-more     | `A+`                | Match A one or more times.                             |
+| Optional        | `A?`                | Match A zero or one time.                              |
+| And-predicate   | `&A`                | Try A without consuming input (succeeds if A matches). |
+| Not-predicate   | `!A`                | Try A without consuming input (succeeds if A fails).   |
+| Literal string  | `'text'` / `"text"` | Match exact sequence of bytes.                         |
+| Character class | `[a-z]`             | Match one byte in the set or range.                    |
+| Any character   | `.`                 | Match any single byte (fails at EOF).                  |
+| Rule reference  | `RuleName`          | Match the named rule.                                  |
+| Grouping        | `(A)`               | Group sub-expressions.                                 |
 
-#### 3.2. AST Capture Markers (`~Rule`)
+#### 3.2 - AST Capture Markers (`~Rule`)
 
 The `~` annotation on a rule definition marks that rule for AST node
 construction. When the rule succeeds, the VM creates an AST node tagged
 with the rule name:
 
-```
+```pegragon
 ~Rule <- Pattern
 ```
 
 A rule defined without `~` matches input but produces no AST node of its
-own — it still participates in matching and may be referenced by other
+own - it still participates in matching and may be referenced by other
 rules. This lets you write "helper" rules that parse structure without
 cluttering the AST.
 
 The annotation compiles to capture instructions that wrap the rule body:
 
-```
+```text
 CAP NODE(tag=Rule) [Pattern] CAP_END POP
 ```
 
@@ -107,7 +107,7 @@ CAP NODE(tag=Rule) [Pattern] CAP_END POP
 
 For example:
 
-```
+```pegragon
 ~AdditiveExpression <- MultiplicativeExpression ( ('+' / '-') MultiplicativeExpression)*
 ```
 
@@ -116,7 +116,7 @@ entire matched text. Rules referenced inside it (like
 `MultiplicativeExpression`) may or may not produce their own nodes
 depending on whether they are also marked with `~`.
 
-#### 3.3. Cut Operator (`^`)
+#### 3.3 - Cut Operator (`^`)
 
 The cut operator commits the parser to the current alternative, discarding
 inner backtrack points so that subsequent failure does not waste time
@@ -124,18 +124,18 @@ re-trying other branches within the same choice level.
 
 Syntax:
 
-```
+```pegragon
 Cut <- '^' Identifier?   # Identifier is optional
 ```
 
 When the VM reaches a cut, it removes all backtrack entries that were
 pushed after the most recent enclosing `I_CHOICE`. Any failure after the
-cut propagates immediately to the next outer choice level — the inner
+cut propagates immediately to the next outer choice level - the inner
 alternatives are no longer candidates.
 
 Examples:
 
-```
+```pegragon
 WhileStmt <- "while" !WordChar Spaces* ^ "(" Expr ")" Stmt
 ```
 
@@ -143,7 +143,7 @@ Once `while` and the mandatory separator match, the cut prevents
 backtracking into other top-level alternatives if `(`, `Expr`, or `)` fail.
 The parser is committed to a `WhileStmt`.
 
-```
+```pegragon
 IfStmt <- "if" !WordChar Spaces* ^IfSyntaxError "(" Expr ")" Stmt
 ```
 
@@ -168,20 +168,20 @@ struct peg_diagnostic_data
 If no identifier is given after `^`, `error_tag` defaults to
 `failed_rule`.
 
-The cut is **local** — it only affects the nearest enclosing choice level.
+The cut is **local** - it only affects the nearest enclosing choice level.
 In:
 
-```
+```text
 (A ^ B / C) / D
 ```
 
 The cut before `/ C` discards only the `B` and `C` alternatives within
 the inner group. The outer alternative `D` remains available.
 
-**Opcode:** `I_CUT` — Discard backtrack entries above the current choice
+**Opcode:** `I_CUT` - Discard backtrack entries above the current choice
 frame and commit to the active alternative.
 
-#### 3.4. Decorators (`@`)
+#### 3.4 - Decorators (`@`)
 
 The `@` syntax is a **rule decorator**, placed on its own line immediately
 before a rule definition (Python-style). It annotates the rule with
@@ -190,7 +190,7 @@ metadata that the VM will use.
 Currently supported decorators:
 
 | Decorator            | Description                                        |
-|:---------------------|:---------------------------------------------------|
+| :------------------- | :------------------------------------------------- |
 | `@sync(tok, ...)`    | Register sync tokens for the decorated rule.       |
 
 `@sync` takes one or more arguments (character literals or string
@@ -199,13 +199,13 @@ decorated rule (or any rule it calls), the VM can use these tokens to
 resynchronise: it scans forward in the input for one of the tokens,
 resets the parser state, and retries from the parent rule.
 
-If multiple rules on the call stack have `@sync` decorators, they are all 
+If multiple rules on the call stack have `@sync` decorators, they are all
 active, but they are ordered as in a FILO stack. If the same token appears
 in multiple rules, the innermost rule's version takes priority.
 
 Example:
 
-```
+```pegragon
 lines <- line*
 
 @sync(';')
@@ -219,25 +219,25 @@ Here `@sync(';')` decorates `~line`. When a parse error occurs inside
 that point. This effectively skips the malformed line and continues with
 the next one.
 
-#### 3.5. Macros (`$`)
+#### 3.5 - Macros (`$`)
 
 Macros are parameterized pattern templates expanded at compile time.
 
 Definition syntax:
 
-```
+```pegragon
 $Name(params) <- Elements
 ```
 
 Call syntax (same as function calls, but expanded inline):
 
-```
+```pegragon
 $Name(args, ...)
 ```
 
 Example:
 
-```
+```pegragon
 $List(Element, Sep) <- Element (Sep Element)* Sep?
 
 Params     <- "(" $List(ParamDecl, ",") ")"
@@ -248,79 +248,82 @@ The macro `$List` is parameterized by `Element` and `Sep`. At each call
 site, `pegrc` substitutes the template and binds the arguments to the
 parameters. Macros can be nested and may reference other macros.
 
-### 4. PEGragon Opcode Reference
+### 4 - PEGragon Opcode Reference
 
 Each instruction is a 32-bit word: `[opcode:8][arg:24]`. The `arg` is
 sign-extended for branch offsets (`I_CALL`, `I_JUMP`, `I_CHOICE`,
 `I_COMMIT`, `I_PARTIAL`) and treated as unsigned for indices (`I_LIT`,
 `I_SET`, `I_SPAN`, `I_NODE`).
 
-#### 4.1. Matching Opcodes
+#### 4.1 - Matching Opcodes
 
 | Opcode    | Arg              | Description                                                |
-|:----------|:-----------------|:-----------------------------------------------------------|
+| :-------- | :--------------- | :--------------------------------------------------------- |
 | `I_CHAR`  | byte value       | Match a single byte at current position.                   |
-| `I_ANY`   | —                | Match any single byte (fails at EOF).                      |
+| `I_ANY`   |                  | Match any single byte (fails at EOF).                      |
 | `I_RANGE` | `lo<<12 \| hi`   | Match byte in `[lo, hi]` inclusive.                        |
 | `I_SET`   | bitmap index     | Match byte if set in a 256-bit bitmap.                     |
 | `I_LIT`   | string-table idx | Match literal null-terminated string.                      |
 | `I_SPAN`  | bitmap index     | Consume bytes while they match the bitmap (zero-or-more).  |
 
-#### 4.2. Control Flow Opcodes
+#### 4.2 - Control Flow Opcodes
 
-| Opcode      | Arg           | Description                                              |
-|:------------|:--------------|:---------------------------------------------------------|
-| `I_JUMP`    | signed offset | Unconditional branch: `ip += sarg + 1`                   |
-| `I_CALL`    | signed offset | Push return address, branch: push `ip`, `ip += sarg + 1` |
-| `I_RET`     | —             | Return from call; if `call_sp == 0`, set `matched=1`     |
-| `I_CHOICE`  | signed offset | Save backtrack state: push `pos, ip+sarg+1, ...`         |
-| `I_COMMIT`  | signed offset | Pop backtrack entry, branch: `bt_sp--; ip += sarg + 1`   |
-| `I_PARTIAL` | signed offset | Update active backtrack entry's `pos`, `node_sp`, and `cap_pos` |
-| `I_FAIL`    | —             | Force backtrack: jump to fail handler                     |
-| `I_CUT`     | —             | Commit: discard all backtrack entries above the current choice frame |
-| `I_TRUE`    | —             | No-op, always succeeds                                    |
-| `I_END`     | —             | Successful parse: set `matched=1`, return                 |
+| Opcode      | Arg           | Description                                                          |
+| :---------- | :------------ | :------------------------------------------------------------------- |
+| `I_JUMP`    | signed offset | Unconditional branch: `ip += sarg + 1`                               |
+| `I_CALL`    | signed offset | Push return address, branch: push `ip`, `ip += sarg + 1`             |
+| `I_RET`     |               | Return from call; if `call_sp == 0`, set `matched=1`                 |
+| `I_CHOICE`  | signed offset | Save backtrack state: push `pos, ip+sarg+1, ...`                     |
+| `I_COMMIT`  | signed offset | Pop backtrack entry, branch: `bt_sp--; ip += sarg + 1`               |
+| `I_PARTIAL` | signed offset | Update active backtrack entry's `pos`, `node_sp`, and `cap_pos`      |
+| `I_FAIL`    |               | Force backtrack: jump to fail handler                                |
+| `I_CUT`     |               | Commit: discard all backtrack entries above the current choice frame |
+| `I_TRUE`    |               | No-op, always succeeds                                               |
+| `I_END`     |               | Successful parse: set `matched=1`, return                            |
 
 **I_CUT details:** On execution, the backtrack stack pointer is adjusted
 so that entries belonging to inner alternatives (pushed after the most
 recent `I_CHOICE`) are removed. The current alternative is committed.
 
-#### 4.3. AST Construction Opcodes
+#### 4.3 - AST Construction Opcodes
 
-| Opcode     | Arg | Description                                                 |
-|:-----------|:----|:------------------------------------------------------------|
-| `I_CAP`    | —   | Save `cap_pos` on cap stack; set `cap_pos = pos`.           |
-| `I_NODE`   | tag | Create new `AstNode(tag)`, push onto node stack.            |
-| `I_CAP_END`| —   | Set top node's source range `(soff, seoff)`, restore cap_pos.|
-| `I_POP`    | —   | Pop top node; if stack non-empty, add as child of new top.  |
+| Opcode     | Arg | Description                                                   |
+| :--------- | :-- | :------------------------------------------------------------ |
+| `I_CAP`    |     | Save `cap_pos` on cap stack; set `cap_pos = pos`.             |
+| `I_NODE`   | tag | Create new `AstNode(tag)`, push onto node stack.              |
+| `I_CAP_END`|     | Set top node's source range `(soff, seoff)`, restore cap_pos. |
+| `I_POP`    |     | Pop top node; if stack non-empty, add as child of new top.    |
 
-#### 4.4. Special Opcodes
+#### 4.4 - Special Opcodes
 
 *(None currently assigned.)*
 
-#### 4.5. Backtrack Mechanics
+#### 4.5 - Backtrack Mechanics
 
 On failure (`I_FAIL` or any matching instruction failing):
-1.  If `bt_sp == 0` (the stack is empty), set matched=0 and exit (definitive failure).
+
+1.  If `bt_sp == 0` (the stack is empty), set matched=0 and exit (definitive
+    failure).
 2.  Otherwise, decrement backtrack stack pointer (`bt_sp--`).
-3.  Free AST nodes from `node_sp` down to the saved node stack pointer in the backtrack entry.
-4.  Restore `pos`, `ip`, `node_sp`, `call_sp`, `cap_sp`, `cap_pos` from the backtrack entry 
-    and resume execution at the restored `ip`.
+3.  Free AST nodes from `node_sp` down to the saved node stack pointer in the
+    backtrack entry.
+4.  Restore `pos`, `ip`, `node_sp`, `call_sp`, `cap_sp`, `cap_pos` from the
+    backtrack entry and resume execution at the restored `ip`.
 
 When a cut has been executed, the backtrack entries between the most
-recent `I_CHOICE` and the cut are absent — the failure propagates
+recent `I_CHOICE` and the cut are absent - the failure propagates
 directly to the next outer choice or to the rule level.
 
-#### 4.6. Instruction Encoding
+#### 4.6 - Instruction Encoding
 
 ```c
 #define I_ENCODE(op, arg) \
     (((uint32_t)(op) << 24) | ((uint32_t)(arg) & 0x00FFFFFFu))
 ```
 
-#### 4.7. Bytecode File Format (`.pegrc`)
+#### 4.7 - Bytecode File Format (`.pegrc`)
 
-```
+```text
 Header:
  uint32 magic
  uint32 code_len
@@ -350,30 +353,31 @@ Sync:
 *   **String/bitmap deduplication:** `pegrc` deduplicates string literals and
     bitmaps at compile time via linear scan, keeping the `.pegrc` binary
     compact.
-*   **PEG Bitmap:** is a simple 256 bits bitmap representing all 256 possible 8bit ASCII
-    characters.
-*   **Rule entries:** each `rule_entry` is `{ uint32 start_addr, uint32 tag, uint32 name_idx }` 
-    mapping a bytecode position to an AST node tag, and linking it to its string 
-    name. Entries are sorted by `start_addr`. The end of a rule's range is the 
-    next entry's `start_addr` (or `code_len` for the last rule). Used by the 
-    recovery logic to map call-stack return addresses back to rule tags.
-*   **Sync entries:** each `sync_entry` is `{ uint32 rule_tag, uint32 token }` where
-    `token` follows the same encoding:
+*   **PEG Bitmap:** is a simple 256 bits bitmap representing all 256 possible
+    8bit ASCII characters.
+*   **Rule entries:** each `rule_entry` is
+    `{ uint32 start_addr, uint32 tag, uint32 name_idx }` mapping a bytecode
+    position to an AST node tag, and linking it to its string name. Entries
+    are sorted by `start_addr`. The end of a rule's range is the next entry's
+    `start_addr` (or `code_len` for the last rule). Used by the recovery logic
+    to map call-stack return addresses back to rule tags.
+*   **Sync entries:** each `sync_entry` is `{ uint32 rule_tag, uint32 token }`
+    where `token` follows the same encoding:
 
-    ```
-    bit 23 = 0 -> bits 22–0 are a bitmap-table index
-    bit 23 = 1 -> bits 22–0 are a string-table index
+    ```text
+    bit 23 = 0 -> bits 22-0 are a bitmap-table index
+    bit 23 = 1 -> bits 22-0 are a string-table index
     ```
 
     `num_sync` may be 0 if no rule carries an `@sync` decorator.
 
-#### 4.8. VM Stack Capacities
+#### 4.8 - VM Stack Capacities
 
 All internal stacks start at 256 entries and grow by 2* on overflow (via
 `realloc`):
 
 | Stack           | Entry Type      | Description                                            |
-|:----------------|:----------------|:-------------------------------------------------------|
+| :-------------- | :-------------- | :----------------------------------------------------- |
 | Backtrack (bt)  | struct (6 flds) | `pos`, `ip`, `node_sp`, `call_sp`, `cap_sp`, `cap_pos` |
 | Call            | `uint32_t`      | Return address IP                                      |
 | Node            | `AstNode*`      | AST node pointer                                       |
@@ -382,31 +386,31 @@ All internal stacks start at 256 entries and grow by 2* on overflow (via
 In the real world it is probably a good idea to limit how big each stack can grow.
 The limit to set is left to the implementation of the VM.
 
-### 5. Cut Semantics and Error Recovery
+### 5 - Cut Semantics and Error Recovery
 
 The cut operator (`^`) and the `@sync` decorator work together to provide
 robust error reporting and recovery.
 
 When a cut is followed by a match failure:
 
-1. The VM unwinds the backtrack stack to the most recent enclosing choice
-   that lies above the cut point.
-2. Diagnostic information is extracted: the failed rule name, the expected
-   token (from the failed instruction's operand), and the input position
-   (byte offset, line, column).
-3. The error tag is taken from the cut's optional identifier, or defaults
-   to the failed rule name.
-4. If the backtrack stack reaches zero, the VM enters recovery mode: it
-   walks the call stack from innermost outward collecting sync tokens
-   from `@sync` decorated rules (inner rules win conflicts), scans
-   forward in the input for any collected token, resets all VM stacks,
-   and retries parsing from the grammar start (see §B.7).
+1.  The VM unwinds the backtrack stack to the most recent enclosing choice
+    that lies above the cut point.
+2.  Diagnostic information is extracted: the failed rule name, the expected
+    token (from the failed instruction's operand), and the input position
+    (byte offset, line, column).
+3.  The error tag is taken from the cut's optional identifier, or defaults
+    to the failed rule name.
+4.  If the backtrack stack reaches zero, the VM enters recovery mode: it
+    walks the call stack from innermost outward collecting sync tokens
+    from `@sync` decorated rules (inner rules win conflicts), scans
+    forward in the input for any collected token, resets all VM stacks,
+    and retries parsing from the grammar start (see §B.7).
 
 This allows the parser to report multiple errors in a single pass and to
 provide specific, context-rich diagnostic messages (e.g. "In IfStmt,
 expected ')' at line 5, column 12").
 
-### 6. Toolchain Components
+### 6 - Toolchain Components
 
 The PEG VM toolchain consists of several executables:
 
@@ -419,8 +423,7 @@ The PEG VM toolchain consists of several executables:
 | `pegr-run`   | Runs a `.pegrc` grammar against input text, prints AST.   |
 | `pegr-unt`   | Unit test for PEGragon                                    |
 
-
-### Appendix A: PEGragon Meta-Grammar
+### Appendix A - PEGragon Meta-Grammar
 
 The following PEG describes the full PEGragon syntax, including AST
 capture markers, cut operators, function calls, and macros. This is the
@@ -496,9 +499,9 @@ EndOfLine      <- '\r\n' / '\n' / '\r'
 EndOfFile      <- !.
 ```
 
-### Appendix B: Assembly Format (`.pegr.asm` / `.pegrc`)
+### Appendix B - Assembly Format (`.pegr.asm` / `.pegrc`)
 
-#### B.1. Overview
+#### B.1 - Overview
 
 The assembly format (`.pegr.asm`) is a human-readable representation of PEGragon
 bytecode. The assembler (`pegr-asm`) compiles it into a binary `.pegrc` file
@@ -507,7 +510,7 @@ debugging bytecode without going through the PEG compiler.
 
 Assembly files use line-based directives, labels, and instructions:
 
-```
+```pegrasm
 ; comment
 .string "text"                              ; add string to table
 .bitmap h1,h2,h3,h4,h5,h6,h7,h8            ; add bitmap (8 hex uint32)
@@ -519,37 +522,42 @@ The assembler resolves label references into signed branch offsets and
 converts `.string` / `.bitmap` declarations into the corresponding bytecode
 table entries.
 
-#### B.2. Directives
+#### B.2 - Directives
 
-**`.string`** — add a string to the string table and return its index.
-```
+**`.string`** - add a string to the string table and return its index.
+
+```pegrasm
 .string "hello"
 ```
+
 Strings are null-terminated and padded to 4-byte alignment in the binary.
 Indexing is zero-based in declaration order.
 
-**`.bitmap`** — add a 256-bit bitmap to the bitmap table and return its
+**`.bitmap`** - add a 256-bit bitmap to the bitmap table and return its
 index.
-```
+
+```pegrasm
 .bitmap h1, h2, h3, h4, h5, h6, h7, h8    ; 8 hex uint32, little-endian bits
 ```
+
 Each `hN` is an 8-digit hexadecimal `uint32_t`. Bit 0 of the bitmap
 corresponds to byte value 0, bit 255 to byte value 255. Bit `b` falls in
 `hN` where `N = b / 32`, at position `b % 32`.
 
-Example — bitmap matching `;` (59) and `\n` (10):
-```
+Example - bitmap matching `;` (59) and `\n` (10):
+
+```pegrasm
 .bitmap 0x00000400,0x08000000,0,0,0,0,0,0
 ```
 
-#### B.3. Labels
+#### B.3 - Labels
 
 A label is an identifier followed by a colon (`:`), placed on its own line.
 It marks the current bytecode position so that branch instructions can refer
 to it. Labels are not emitted as instructions; they are resolved to offsets
 at assembly time.
 
-```
+```pegrasm
 try_literal:
   LIT "keyword"
   END
@@ -559,121 +567,130 @@ Branch instructions (`JUMP`, `CALL`, `CHOICE`, `COMMIT`, `PARTIAL`) accept a
 label operand. The assembler computes the signed 24-bit offset from the
 instruction to the label.
 
-Note: In the unlikely event a PEG file would generate too many entry, either 
-nodes, rules, that would not fit in the 24 bit space, this would not be a VM 
+Note: In the unlikely event a PEG file would generate too many entry, either
+nodes, rules, that would not fit in the 24 bit space, this would not be a VM
 issue as the compiler would simply refuse to compile the PEG file.
 
-#### B.4. Instruction Reference
+#### B.4 - Instruction Reference
 
 Each instruction is a 32-bit word: `[opcode:8][arg:24]`. The `arg` is
 sign-extended for branch offsets (`I_CALL`, `I_JUMP`, `I_CHOICE`,
 `I_COMMIT`, `I_PARTIAL`) and treated as unsigned otherwise. Below,
 "encoding" shows the `I_ENCODE` arguments.
 
----
-
-##### Matching Instructions
+##### B.4.1 - Matching Instructions
 
 **`CHAR`** `'c'` / `0xNN` / `NNN`
-```
-Encoding:  I_ENCODE(I_CHAR, byte)
-Arg:       byte value (0–255)
-```
+
+| Encoding                 | Arg                |
+| :----------------------- | :----------------- |
+| `I_ENCODE(I_CHAR, byte)` | byte value (0-255) |
+
 Match a single byte at the current input position. On match, advance by 1
 and succeed. On mismatch, fail.
 
 **`ANY`**
-```
-Encoding:  I_ENCODE(I_ANY, 0)
-Arg:       unused
-```
+
+| Encoding               | Arg                |
+| :--------------------- | :----------------- |
+| `I_ENCODE(I_ANY, 0)`   | unused             |
+
 Match any single byte. Fails at end of input.
 
 **`RANGE`** `lo hi`
-```
-Encoding:  I_ENCODE(I_RANGE, (lo << 12) | hi)
-Arg:       lo in bits 23–12, hi in bits 11–0
-```
+
+| Encoding                              | Arg                               |
+| :------------------------------------ | :-------------------------------- |
+| `I_ENCODE(I_RANGE, (lo << 12) \| hi)` | lo in bits 23-12, hi in bits 11-0 |
+
 Match the current byte if `lo ≤ byte ≤ hi`. On match, advance by 1 and
 succeed.
 
 **`SET`** `bm[N]` / `SET N`
-```
-Encoding:  I_ENCODE(I_SET, N)
-Arg:       bitmap-table index N
-```
+
+| Encoding               | Arg                  |
+| :--------------------- | :------------------- |
+| `I_ENCODE(I_SET, N)`   | bitmap-table index N |
+
 Match the current byte if its bit is set in bitmap `N`. On match, advance
 by 1 and succeed.
 
 **`LIT`** `N` / `"str"`
-```
-Encoding:  I_ENCODE(I_LIT, N)
-Arg:       string-table index N
-```
+
+| Encoding               | Arg                  |
+| :--------------------- | :------------------- |
+| `I_ENCODE(I_LIT, N)`   | string-table index N |
+
 Match the null-terminated string at string-table index `N` against the
 current input position. On match, advance by the string length and succeed.
 On mismatch, fail. The `"str"` form adds the string to the table and uses
 its index.
 
 **`SPAN`** `bm[N]` / `SPAN N`
-```
-Encoding:  I_ENCODE(I_SPAN, N)
-Arg:       bitmap-table index N
-```
-Consume input bytes while each matches bitmap `N`. Always succeeds (may
-consume zero bytes). Does not fail.
----
 
-##### Control Flow Instructions
+| Encoding               | Arg                  |
+| :--------------------- | :------------------- |
+| `I_ENCODE(I_SPAN, N)`  | bitmap-table index N |
+
+Consume input bytes while each matches bitmap `N`. Always succeeds (may
+consume zero bytes). Does not fail
+
+##### B.4.2 - Control Flow Instructions
 
 **`JUMP`** `label`
-```
-Encoding:  I_ENCODE(I_JUMP, offset)
-Arg:       signed 24-bit offset (ip += sarg + 1)
-```
+
+| Encoding                   | Arg                                   |
+| :------------------------- | :------------------------------------ |
+| `I_ENCODE(I_JUMP, offset)` | signed 24-bit offset (ip += sarg + 1) |
+
 Unconditional branch. Set `ip += arg + 1` (the +1 accounts for the
 instruction's own width).
 
 **`CALL`** `label`
-```
-Encoding:  I_ENCODE(I_CALL, offset)
-Arg:       signed 24-bit offset
-```
+
+| Encoding                   | Arg                  |
+| :------------------------- | :------------------- |
+| `I_ENCODE(I_CALL, offset)` | signed 24-bit offset |
+
 Call a subroutine. Push the return address (current `ip + 1`) onto the call
 stack, then branch: `ip += arg + 1`.
 
 **`RET`**
-```
-Encoding:  I_ENCODE(I_RET, 0)
-Arg:       unused
-```
+
+| Encoding               | Arg                |
+| :--------------------- | :----------------- |
+| `I_ENCODE(I_RET, 0)`   | unused             |
+
 Return from subroutine. Pop the call stack. If the call stack is now empty,
 set `matched = 1` and signal successful parse. Otherwise, set `ip` to the
 popped return address.
 
 **`CHOICE`** `label`
-```
-Encoding:  I_ENCODE(I_CHOICE, offset)
-Arg:       signed 24-bit offset
-```
+
+| Encoding                     | Arg                  |
+| :--------------------------- | :------------------- |
+| `I_ENCODE(I_CHOICE, offset)` | signed 24-bit offset |
+
 Save a backtrack frame. Push the current `pos`, `ip + arg + 1`, `node_sp`,
 `call_sp`, `cap_sp`, and `cap_pos` onto the backtrack stack. The saved
-`ip` is the failure continuation — on backtrack, execution resumes there.
+`ip` is the failure continuation - on backtrack, execution resumes there.
 
 **`COMMIT`** `label`
-```
-Encoding:  I_ENCODE(I_COMMIT, offset)
-Arg:       signed 24-bit offset
-```
+
+| Encoding                     | Arg                  |
+| :--------------------------- | :------------------- |
+| `I_ENCODE(I_COMMIT, offset)` | signed 24-bit offset |
+
 Pop the top backtrack frame (`bt_sp--`) without restoring state, then
 branch: `ip += arg + 1`. Used after a successful choice branch to discard
 the saved alternative and jump past it.
 
 **`PARTIAL`** `label`
-```
-Encoding:  I_ENCODE(I_PARTIAL, offset)
-Arg:       signed 24-bit offset
-```
+
+| Encoding                      | Arg                  |
+| :---------------------------- | :------------------- |
+| `I_ENCODE(I_PARTIAL, offset)` | signed 24-bit offset |
+
 Update the top backtrack frame's `pos`, `node_sp`, and `cap_pos` to the current
 values, leaving the continuation `ip` unchanged. Then branch: `ip += arg + 1`.
 Used in iterative loops (e.g. `(A)*`) to commit the consumed input and generated
@@ -681,102 +698,110 @@ AST nodes of the current iteration, so that when the loop eventually fails, it
 gracefully exits out rather than rewinding all previous iterations.
 
 **`FAIL`**
-```
-Encoding:  I_ENCODE(I_FAIL, 0)
-Arg:       unused
-```
-Force a backtrack. If `bt_sp == 0`, set `matched = 0` and exit (definitive 
+
+| Encoding               | Arg                |
+| :--------------------- | :----------------- |
+| `I_ENCODE(I_FAIL, 0)`  | unused             |
+
+Force a backtrack. If `bt_sp == 0`, set `matched = 0` and exit (definitive
 failure). Otherwise, decrement `bt_sp`. Free AST nodes from `node_sp` down
 to the saved node stack pointer. Restore `pos`, `ip`, `node_sp`, `call_sp`,
 `cap_sp`, `cap_pos` from the backtrack entry. (See also §5 for cut-interaction
 behavior.)
 
 **`TRUE`**
-```
-Encoding:  I_ENCODE(I_TRUE, 0)
-Arg:       unused
-```
+
+| Encoding               | Arg                |
+| :--------------------- | :----------------- |
+| `I_ENCODE(I_TRUE, 0)`  | unused             |
+
 No-op. Always succeeds, advances nothing.
 
 **`END`**
-```
-Encoding:  I_ENCODE(I_END, 0)
-Arg:       unused
-```
+
+| Encoding               | Arg                |
+| :--------------------- | :----------------- |
+| `I_ENCODE(I_END, 0)`   | unused             |
+
 Successful parse termination. Set `matched = 1` and return. Placed at the
 end of each rule body.
 
----
-
-##### AST Construction Instructions
+##### B.4.3 - AST Construction Instructions
 
 **`NODE`** `tag=N` / `NODE N`
-```
-Encoding:  I_ENCODE(I_NODE, N)
-Arg:       user-defined tag value (≥ 256)
-```
+
+| Encoding               | Arg                            |
+| :--------------------- | :----------------------------- |
+| `I_ENCODE(I_NODE, N)`  | user-defined tag value (≥ 256) |
+
 Create a new `AstNode` with numeric tag `N` and push it onto the node stack.
 
 **`POP`**
-```
-Encoding:  I_ENCODE(I_POP, 0)
-Arg:       unused
-```
+
+| Encoding               | Arg                |
+| :--------------------- | :----------------- |
+| `I_ENCODE(I_POP, 0)`   | unused             |
+
 Pop the top node from the node stack. If the stack is non-empty, add the
 popped node as a child of the new top node.
 
 **`CAP`**
-```
-Encoding:  I_ENCODE(I_CAP, 0)
-Arg:       unused
-```
+
+| Encoding               | Arg                |
+| :--------------------- | :----------------- |
+| `I_ENCODE(I_CAP, 0)`   | unused             |
+
 Push the current `cap_pos` onto the cap stack, then set `cap_pos = pos`.
 Marks the start of a node's source range.
 
 **`CAP_END`**
-```
-Encoding:  I_ENCODE(I_CAP_END, 0)
-Arg:       unused
-```
+
+| Encoding                 | Arg                |
+| :----------------------- | :----------------- |
+| `I_ENCODE(I_CAP_END, 0)` | unused             |
+
 Set the top node's source range `(cap_pos, pos)`, then restore `cap_pos`
 by popping the cap stack.
 
----
-
-##### Special Instructions
+##### B.4.4 - Special Instructions
 
 **`CUT`** `tag=N` / `"str"` (optional)
-```
-Encoding:  I_ENCODE(I_CUT, N)
-Arg:       0 (no tag) or string-table index N (with tag)
-```
-Cut point — commit the parser to the current alternative. See §B.6 for
+
+| Encoding               | Arg                                           |
+| :--------------------- | :-------------------------------------------- |
+| `I_ENCODE(I_CUT, N)`   | 0 (no tag) or string-table index N (with tag) |
+
+Cut point - commit the parser to the current alternative. See §B.6 for
 full specification.
 
-#### B.5. PEGR-to-Assembly Examples
+#### B.5 - PEGR-to-Assembly Examples
 
-##### Example 1: Literal match
+##### B.5.1 - Example 1: Literal match
 
-PEG: 
-```
+PEGragon:
+
+```pegragon
 "hello"
 ```
 
 Assembly:
-```asm
+
+```pegrasm
   LIT "hello"
   END
 ```
 
-##### Example 2: Sequence and ordered choice
+##### B.5.2 - Example 2: Sequence and ordered choice
 
-PEG: 
-```
+PEGragon:
+
+```pegragon
 "if" "(" Expr ")" Stmt / "while" "(" Expr ")" Stmt
 ```
 
 Assembly:
-```asm
+
+```pegrasm
   CHOICE _try_while
   LIT "if"
   LIT "("
@@ -794,15 +819,17 @@ _end:
   END
 ```
 
-##### Example 3: Repetition (`*`)
+##### B.5.3 - Example 3: Repetition (`*`)
 
-PEG: 
-```
+PEGragon:
+
+```pegragon
 ('a' / 'b')*
 ```
 
 Assembly:
-```asm
+
+```pegrasm
   CHOICE _done        ; Push backtrack target (loop exit)
 _loop:
   CHOICE _try_b       ; Push inner choice for 'a' / 'b'
@@ -821,15 +848,17 @@ _done:
 execution correctly falls through to `_done` without losing the text matched
 by previous iterations.
 
-##### Example 4: AST capture
+##### B.5.4 - Example 4: AST capture
 
-PEG: 
-```
+PEGragon:
+
+```pegragon
 ~Number <- [0-9]+
 ```
 
 Assembly:
-```asm
+
+```pegrasm
 Number:
   CAP
   NODE tag=256        ; 256 = Number
@@ -842,18 +871,20 @@ Number:
   END
 ```
 
-(Full one-or-more assembly omitted for brevity — combines `CHOICE`/`COMMIT`
+(Full one-or-more assembly omitted for brevity - combines `CHOICE`/`COMMIT`
 with `PARTIAL` as in Example 3.)
 
-##### Example 5: Cut operator
+##### B.5.5 - Example 5: Cut operator
 
-PEG: 
-```
+PEGragon:
+
+```pegragon
 ^ "(" Expr ")"
 ```
 
 Assembly:
-```asm
+
+```pegrasm
   CUT
   LIT "("
   CALL Expr
@@ -861,18 +892,20 @@ Assembly:
 ```
 
 The `CUT` discards any backtrack entries pushed before it, so if `Expr`
-fails, the VM does not try alternatives above the cut — it reports the
+fails, the VM does not try alternatives above the cut - it reports the
 error directly.
 
-##### Example 6: Cut with error tag
+##### B.5.6 - Example 6: Cut with error tag
 
-PEG: 
-```
+PEGragon:
+
+```pegragon
 ^IfSyntaxError "(" Expr ")"
 ```
 
 Assembly:
-```asm
+
+```pegrasm
   .string "IfSyntaxError"
   CUT tag=0           ; string-table index 0 -> "IfSyntaxError"
   LIT "("
@@ -880,60 +913,58 @@ Assembly:
   LIT ")"
 ```
 
-#### B.6. CUT Specification (for Implementation)
+#### B.6 - CUT Specification (for Implementation)
 
 The following section defines the exact runtime behaviour of `CUT`. It is
-not yet implemented — this specification serves as the implementation
+not yet implemented - this specification serves as the implementation
 guide.
 
----
-
-##### B.6.1. `I_CUT` — Cutting Point
+##### B.6.1 - `I_CUT` - Cutting Point
 
 **Encoding:**
 
-| `arg` value | Meaning |
-|-------------|---------|
-| `0` | Cut without error tag. On failure, `error_tag` defaults to the containing rule name. |
-| `> 0` | Cut with error tag. `error_tag = string_table[arg]`. |
-| `≤ 0` | Reserved / invalid. |
+| `arg` value  | Meaning                                                                              |
+| :----------- | :----------------------------------------------------------------------------------- |
+| `0`          | Cut without error tag. On failure, `error_tag` defaults to the containing rule name. |
+| `> 0`        | Cut with error tag. `error_tag = string_table[arg]`.                                 |
+| `≤ 0`        | Reserved / invalid.                                                                  |
 
 **Execution (`I_CUT` reach in normal flow):**
 
-1. Let `cut_choice_depth` be the backtrack-stack index of the most recent
-   `I_CHOICE` entry. (If no choice is active, `cut_choice_depth` is the
-   current `bt_sp`.)
-2. Discard all backtrack entries with index `> cut_choice_depth`. Set
-   `bt_sp = cut_choice_depth`.
-3. Store the optional `error_tag` index (`arg`) in a VM-local "cut tag"
-   field, associated with the current rule invocation.
-4. Advance to the next instruction (`ip++`). **I_CUT itself never fails.**
+1.  Let `cut_choice_depth` be the backtrack-stack index of the most recent
+    `I_CHOICE` entry. (If no choice is active, `cut_choice_depth` is the
+    current `bt_sp`.)
+2.  Discard all backtrack entries with index `> cut_choice_depth`. Set
+    `bt_sp = cut_choice_depth`.
+3.  Store the optional `error_tag` index (`arg`) in a VM-local "cut tag"
+    field, associated with the current rule invocation.
+4.  Advance to the next instruction (`ip++`). **I_CUT itself never fails.**
 
 **Behavior on subsequent failure (in the fail handler):**
 
 When any instruction fails after `I_CUT` has been executed:
 
-1. **Normal backtrack proceeds:** `bt_sp--`, restore state from the
-   backtrack entry.
-   - Because `I_CUT` removed inner entries, the restored state is the
-     next outer choice (or the rule entry point if no outer choice
-     exists).
-2. **Diagnostic data is populated** from the failed instruction:
-   - `error_tag`: the cut's tag if one was stored, otherwise the name of
-     the rule that contains the cut.
-   - `failed_rule`: the name of the rule containing the cut (from the
-     nearest `~Rule` definition or the call-stack rule name).
-   - `expected_token`: a human-readable representation of what the failed
-     instruction expected:
-     - `I_CHAR`: single-character string with the byte value.
-     - `I_LIT`: the literal string from the string table.
-     - `I_RANGE`: `"[lo–hi]"`.
-     - `I_SET` / `I_SPAN`: `"<bitmap N>"`.
-     - `I_ANY`: `"<any>"`.
-   - `error_offset`, `line`, `column`: from the current `pos` at time of
-     failure.
-3. The diagnostic is delivered to the host program via a callback or return
-   struct, allowing it to format and report the error.
+1.  **Normal backtrack proceeds:** `bt_sp--`, restore state from the
+    backtrack entry.
+    *   Because `I_CUT` removed inner entries, the restored state is the
+        next outer choice (or the rule entry point if no outer choice
+        exists).
+2.  **Diagnostic data is populated** from the failed instruction:
+    *   `error_tag`: the cut's tag if one was stored, otherwise the name of
+        the rule that contains the cut.
+    *   `failed_rule`: the name of the rule containing the cut (from the
+        nearest `~Rule` definition or the call-stack rule name).
+    *   `expected_token`: a human-readable representation of what the failed
+        instruction expected:
+        *   `I_CHAR`: single-character string with the byte value.
+        *   `I_LIT`: the literal string from the string table.
+        *   `I_RANGE`: `"[lo-hi]"`.
+        *   `I_SET` / `I_SPAN`: `"<bitmap N>"`.
+        *   `I_ANY`: `"<any>"`.
+    *   `error_offset`, `line`, `column`: from the current `pos` at time of
+        failure.
+3.  The diagnostic is delivered to the host program via a callback or return
+    struct, allowing it to format and report the error.
 
 **If `bt_sp == 0` after the cut (no outer choice):** The failure propagates
 to the rule level exactly as described in §4.5, but with diagnostic data
@@ -943,41 +974,39 @@ before final failure.
 **Multiple cuts:** Only the most recent `I_CUT`'s tag is used for
 diagnostics. Earlier cuts within the same alternative are superseded.
 
----
-
-#### B.7. Sync Token Specification
+#### B.7 - Sync Token Specification
 
 Sync tokens are stored as a **metadata table** in the `.pegrc` bytecode
-(see §4.7). There are no sync-related VM instructions — the table is
+(see §4.7). There are no sync-related VM instructions - the table is
 loaded at grammar load time and consulted during error recovery.
 
-##### B.7.1. Data tables
+##### B.7.1 - Data tables
 
 The `.pegrc` file embeds two tables that the recovery logic uses:
 
-**`rules[]`** — `{start_addr, tag}` entries, sorted by `start_addr`.
+**`rules[]`** - `{start_addr, tag}` entries, sorted by `start_addr`.
 Each entry records the bytecode position and AST node tag of one rule.
 The end of a rule's address range is the next entry's `start_addr` (or
 `code_len` for the last rule). Used to map a return address on the call
 stack back to the rule tag.
 
-**`sync[]`** — `{rule_tag, token}` entries. `token` uses the same
+**`sync[]`** - `{rule_tag, token}` entries. `token` uses the same
 encoding as the assembler's `.sync` directive:
 
-```
-bit 23 = 0 -> bits 22–0 are a bitmap-table index (single-byte tokens)
-bit 23 = 1 -> bits 22–0 are a string-table index (multi-byte string)
+```text
+bit 23 = 0 -> bits 22-0 are a bitmap-table index (single-byte tokens)
+bit 23 = 1 -> bits 22-0 are a string-table index (multi-byte string)
 ```
 
 Single-byte tokens should be packed into a single bitmap per rule. Each
 multi-byte string token gets its own entry.
 
-##### B.7.2. Recovery behaviour
+##### B.7.2 - Recovery behaviour
 
 The recovery trigger is the **fail handler when `bt_sp == 0`** (no
 backtrack options remain and the VM is about to set `matched = 0`).
 
-```
+```python
 if bt_sp == 0 && nsync > 0:
     // 1. Walk call stack innermost-first, collecting sync tokens
     //    and recording the innermost sync-decorated rule.
@@ -1035,7 +1064,7 @@ RECOVER:
 `lookup_sync_by_tag(tag)` performs a linear scan over the `sync[]` table
 to find the first entry matching `tag`.
 
-##### B.7.3. Conflict resolution
+##### B.7.3 - Conflict resolution
 
 When multiple rules on the call stack have `@sync` decorators, all their
 tokens are collected (step 1 iterates innermost-first). If the same token
@@ -1043,27 +1072,27 @@ appears in multiple rules, the innermost rule's entry is added first and
 the check `token not already in recovery_tokens` prevents outer rules from
 overriding it. This gives inner rules priority for conflicting tokens.
 
-##### B.7.4. Relationship with CUT
+##### B.7.4 - Relationship with CUT
 
 `I_CUT` and the sync metadata are independent:
-- `I_CUT` commits a choice and populates diagnostic data on failure.
-- The sync table enables recovery when no backtrack options remain.
+
+*   `I_CUT` commits a choice and populates diagnostic data on failure.
+*   The sync table enables recovery when no backtrack options remain.
 
 When both are used:
-1. Instruction fails after a cut.
-2. Diagnostic data is populated (see B.6.1).
-3. Backtrack unwinds. If `bt_sp` reaches 0, recovery fires.
-4. The parser retries from the innermost sync rule's entry at the new
-   input position.
-5. Further errors may be found and reported similarly.
 
----
+1.  Instruction fails after a cut.
+2.  Diagnostic data is populated (see B.6.1).
+3.  Backtrack unwinds. If `bt_sp` reaches 0, recovery fires.
+4.  The parser retries from the innermost sync rule's entry at the new
+    input position.
+5.  Further errors may be found and reported similarly.
 
-### Appendix C: Reference VM Implementation (Python)
+### Appendix C - Reference VM Implementation (Python)
 
 The following Python code implements the PegVM interpreter, bytecode
 loader, and error-recovery logic as specified in this document. It is
-intended as a readable reference — not optimised, but complete.
+intended as a readable reference - not optimised, but complete.
 
 ```python
 import struct
@@ -1275,7 +1304,7 @@ class PegVM:
             return repr(self.bc.strings[arg].decode("latin-1", errors="replace"))
         if op == Op.RANGE:
             lo, hi = (arg >> 12) & 0xFFF, arg & 0xFFF
-            return f"[{chr(lo)}–{chr(hi)}]"
+            return f"[{chr(lo)}-{chr(hi)}]"
         if op in (Op.SET, Op.SPAN):
             return f"<bitmap {arg}>"
         if op == Op.ANY:
@@ -1290,7 +1319,7 @@ class PegVM:
         return line, col
 
     def _fail(self, op: int, arg: int) -> bool:
-        """Backtrack handler — called when an instruction fails."""
+        """Backtrack handler - called when an instruction fails."""
         # Populate diagnostic data on failure
         line, col = self._line_col()
         rule_tag = lookup_rule_by_address(self.bc.rules, max(0, self.ip - 1))
@@ -1570,16 +1599,16 @@ Notes on the reference implementation:
     first, collect sync tokens, scan forward, and restart from the
     innermost sync-decorated rule's entry.
 
-*   **`CUT`** guarantees local scope by checking the call depth of the 
-    top backtrack frame. By only popping a frame if it belongs to the 
-    current rule (`call_sp == len(call_stack)`), it safely discards the 
-    nearest alternative without corrupting outer choices or the 
-    caller's backtrack state. Production implementations should mirror 
+*   **`CUT`** guarantees local scope by checking the call depth of the
+    top backtrack frame. By only popping a frame if it belongs to the
+    current rule (`call_sp == len(call_stack)`), it safely discards the
+    nearest alternative without corrupting outer choices or the
+    caller's backtrack state. Production implementations should mirror
     this O(1) check.
 
 *   **Stack management:** Python lists are used for all stacks.
     Backtrack saves and restores stack pointers (`len(list)`) rather
-    than copying entries — the actual list content above the saved
+    than copying entries - the actual list content above the saved
     pointer is discarded on restore.
 
 *   **Diagnostic data** (`PegDiagnostic`) is populated in `_fail()` when
@@ -1591,7 +1620,3 @@ Notes on the reference implementation:
     from the `.pegrc` file. `lookup_rule_by_address` performs a binary
     search; `lookup_sync_by_tag` performs a linear scan (the table is
     small).
-
-| Version | Date           | Author(s)  | Changes         |
-| :------ | :------------- | :--------- | :-------------- |
-| 1.0.0   | 13 August 2026 | Madeleine  | Initial version |
